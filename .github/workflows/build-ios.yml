@@ -10,18 +10,16 @@ on:
 jobs:
   build:
     runs-on: macos-15
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Generate Xcode project
+      - name: Generate project
         run: xcodegen generate
 
-      - name: Build iOS Simulator app
+      - name: Build simulator
         run: |
           xcodebuild \
             -project KimchiOS.xcodeproj \
@@ -32,9 +30,32 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Upload simulator app
+      - name: Upload simulator
         uses: actions/upload-artifact@v4
         with:
           name: KimchiOS-Simulator-Build
           path: build/Build/Products/Debug-iphonesimulator/KimchiOS.app
-          if-no-files-found: error
+
+      - name: Build iPhone app
+        run: |
+          xcodebuild \
+            -project KimchiOS.xcodeproj \
+            -scheme KimchiOS \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          set -e
+          mkdir -p Payload
+          cp -R build-device/Build/Products/Release-iphoneos/KimchiOS.app Payload/
+          zip -qry KimchiOS-unsigned.ipa Payload
+
+      - name: Upload iPhone IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: KimchiOS-Unsigned-iPhone-IPA
+          path: KimchiOS-unsigned.ipa
